@@ -1,0 +1,273 @@
+= Kubernetes introduction presentation - commands
+
+== Prepare env
+
+== Assumption
+
+. Windows 8
+. cygwin
+. python 2.7
+. VirtualBox
+
+=== Install minikube
+
+=== Install kubectl
+
+=== Configure kubectl completion
+
+Link: https://kubernetes.io/docs/reference/kubectl/cheatsheet/[cheatsheet]
+
+----
+source <(kubectl completion bash)
+echo "source <(kubectl completion bash)" >> ~/.bashrc
+----
+
+=== Install docker
+
+. Get binary
++
+----
+wget https://download.docker.com/win/static/stable/x86_64/docker-17.09.0-ce.zip
+----
+
+. Unzip file
++
+----
+unzip docker-17.09.0-ce.zip
+----
+
+. Add docker cli to PATH env
++
+----
+export PATH="$(pwd)/docker:${PATH}"
+----
+
+. Test if docker cli is in PATH
++
+----
+type docker
+----
+
+=== Connect docker cmd to minikube
+
+. Export docker env
++
+----
+eval $(minikube docker-env)
+----
+
+. Test docker
++
+----
+docker ps
+----
+
+
+=== Configure gcloud cli
+
+Run in windows CMD or cygwin
+----
+gcloud init
+gcloud auth login
+gcloud projects list
+gcloud config set project kubernetes-test-252820
+gcloud config set compute/zone europe-west6-c
+----
+
+Fix kube config in cygwin
+----
+sed -i "s/cmd-path:.*/cmd-path: gcloud/" ~/.kube/config
+----
+
+Run in windows CMD with Admin rights
+----
+gcloud components update
+gcloud components install docker-credential-gcr
+----
+
+Create kubernetes cluster
+----
+gcloud container clusters create jdd
+----
+
+Delete cluster
+----
+gcloud container clusters delete jdd
+----
+
+
+gcloud services enable containerregistry.googleapis.com
+
+DO NOT USE: gcloud auth configure-docker
+docker-credential-gcr configure-docker
+
+
+
+gcloud init
+gcloud auth login --no-launch-browser
+gcloud config set project kubernetes-test-252820
+gcloud config set compute/zone europe-west6-c
+
+
+
+
+== Create simple REST app
+
+. Go to Spring initializer page: start.spring.io
+.. Select components
+... web
+... actuator
+. Download generated project
+. Open generated project in the IDE
+. Add lombok dependency
++
+----
+<dependency>
+    <groupId>org.projectlombok</groupId>
+    <artifactId>lombok</artifactId>
+    <optional>true</optional>
+</dependency>
+----
+. Enable _"Annotation processing"_
+. Create controller
+@RestController
+@GetMapping("/")
+. DEMO
+
+. Install Docker plugin
+. Install Markdown plugin
+. Install Lombok plugin
+
+Connect IntelliJ Docker plugin to minikube
+. Get minikube env
++
+----
+minikube docker-env|sed "s/tcp:/https:/"
+----
+. Set "TCP Socket"
+.. _"Engine API URL"_ set to `DOCKER_HOST`
+.. _"Certificates folder"_ set to `DOCKER_CERT_PATH`
+
+Build docker directly on the minikube VM
+. Copy Dockerfile and jar
++
+----
+scp -i $(minikube ssh-key) -r . docker@$(minikube ip):.
+----
+
+Build docker directly on minikube VM
++
+----
+minikube ssh
+docker build . --tag demo:0.0.1
+docker run --name demo -d -p 8080:8080 -e "BOOKS_FILE_PATH=/books/books.json" -v $(pwd):/books demo:0.0.1
+curl http://localhost:8080/books
+----
+
+Remove docker instance
++
+----
+docker rm -f demo
+----
+
+
+== Minikube commands
+
+----
+minikube delete
+minikube start
+minikube ip
+minikube ssh
+minikube kubectl
+minikube addons list
+----
+
+
+
+
+kubectl label namespace NAMESPACE istio-injection=enabled
+kubectl scale deployment demo --replicas 5
+
+
+
+export INGRESS_HOST=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+export INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].port}')
+export SECURE_INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="https")].port}')
+
+
+
+
+
+=== Istio
+
+
+Run in windows CMD with Admin rights
+----
+gcloud components install beta
+----
+
+Create kubernetes cluster with istio enabled
+----
+gcloud beta container clusters create jdd-istio2 \
+    --addons=Istio --istio-config=auth=MTLS_PERMISSIVE \
+    --machine-type=n1-standard-2 \
+    --num-nodes=4
+----
+	
+In case when kubectl is not configured
+----
+gcloud container clusters get-credentials jdd
+----
+
+
+
+kubectl create clusterrolebinding "cluster-admin-$(whoiam)" --clusterrole=cluster-admin --user="$(gcloud config get-value core/account)"
+
+kubectl apply -f "https://cloud.weave.works/k8s/scope.yaml?k8s-version=$(kubectl version | base64 | tr -d '\n')"
+
+kubectl label namespace NAMESPACE istio-injection=enabled
+kubectl scale deployment demo --replicas 5
+
+
+
+export INGRESS_HOST=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+export INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].port}')
+export SECURE_INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="https")].port}')
+
+
+* 3 x n1-standard-1 (1 vCPU, 3.75 GB memory)
+
+
+== Sock-shop
+
+----
+git clone https://github.com/microservices-demo/microservices-demo
+
+cd microservices-demo/deploy/kubernetes
+
+kubectl create namespace sock-shop
+
+kubectl apply -f complete-demo.yaml
+
+# change type from NodePort to LoadBalancer
+kubectl edit services -nsock-shop front-end
+
+----
+
+
+
+Backup commands
+----
+gcloud services enable containerregistry.googleapis.com
+
+gcloud components install kubectl
+
+kubectl run demo --image demo:0.0.1 --image-pull-policy IfNotPresent
+
+kubectl run demo --image demo:0.0.1 --image-pull-policy IfNotPresent --restart Never --port 8080
+
+kubectl run busybox --rm --image busybox --restart Never -i -- wget -O - http://demo:8080/books
+
+gcloud container images list --repository eu.gcr.io/kubernetes-test-252820
+
+----

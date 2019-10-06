@@ -1,0 +1,4 @@
+FROM openjdk:12-alpine
+COPY target/kubernetes-demo-0.0.1.jar kubernetes-demo.jar
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "/kubernetes-demo.jar"]
