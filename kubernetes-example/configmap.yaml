@@ -1,0 +1,9 @@
+apiVersion: v1
+data:
+  books.json: "[\r\n  {\r\n    \"title\": \"Kubernetes: Up and Running\",\r\n    \"authors\":
+    [\"Kelsey Hightower\", \"Brendan Burns\", \"Joe Beda\"]\r\n  },\r\n  {\r\n    \"title\":
+    \"JAK ROZPOCZĄĆ PRACĘ Z KUBERNETES\",\r\n    \"authors\": [\"Jakub Gutkowski\",
+    \"Łukasz Kałużny\", \"Piotr Stapp\"]\r\n  }\r\n]"
+kind: ConfigMap
+metadata:
+  name: books

@@ -1,0 +1,253 @@
+= Kubernetes introduction presentation - commands
+
+== Before demo
+
+. Start minikube
++
+----
+minikube start
+----
+
+. Start minikube tunnel (to simulate LoadBalancer)
++
+NOTE: Run it in separate window with admin credentials.
++
+----
+minikube tunnel
+----
+
+. Create kubernetes cluster on GKE
++
+NOTE: Creates cluster with 3 VM instances of n1-standard-1 (1 vCPU, 3.75 GB memory)
++
+----
+gcloud container clusters create jdd
+----
+
+== Demo
+
+=== Minikube demo
+
+. Connect docker cli to minikube
++
+----
+eval $(minikube docker-env)
+----
+
+. Build application
+.. `F10` - presentation mode in IntelliJ
+.. `mvn package` - directly in IntelliJ
+
+. Copy `books.json` to minikube VM
++
+----
+scp -i $(minikube ssh-key) books.json docker@$(minikube ip):.
+----
+
+. Build docker image
++
+----
+docker build . --tag demo:0.0.1
+----
+
+. Run application in docker image
++
+----
+docker run --name demo -d -p 8080:8080 -v /home/docker:/books -e "BOOKS_FILE_PATH=/books/books.json" -m 512m -e JAVA_OPTS="-Xmx256m -Xms256m" demo:0.0.1
+----
++
+NOTE: docker argument `-m` refers to `spec.containers[].resources.limits.memory`
+
+. Test application
++
+----
+curl http://$(minikube ip):8080/books
+----
+
+. Remove docker instance
++
+----
+docker rm -f demo
+----
+
+. Create kubernetes deployment
++
+----
+kubectl run demo --image demo:0.0.1 --env "BOOKS_FILE_PATH=/books/books.json" --env JAVA_OPTS="-Xmx256m -Xms256m" --limits "memory=512Mi" --image-pull-policy IfNotPresent --restart Always
+----
+
+. Create kubernetes service
++
+----
+kubectl expose deployment demo --port=8080 --type LoadBalancer
+----
+
+. Test application
++
+.Manual
+----
+kubectl get service demo
+curl http://<IP>:<PORT>/books
+----
++
+or
++
+.LoadBalancer
+----
+PORT=$(kubectl get service demo -ojsonpath='{ .spec.ports[0].port }')
+IP=$(kubectl get service demo -ojsonpath='{ .status.loadBalancer.ingress[0].ip }')
+curl http://${IP}:${PORT}/books
+----
++
+or
++
+.NodePort
+----
+PORT=$(kubectl get service demo -ojsonpath='{ .spec.ports[0].nodePort }')
+IP=$(minikube ip)
+curl http://${IP}:${PORT}/books
+----
+
+. Create config map with books.json
++
+----
+kubectl create configmap books --from-file=books.json=books.json
+kubectl get configmap books -ojsonpath='{ .data.books\.json }'
+----
+
+. Dump all kubernetes object
++
+----
+kubectl get deployment demo --export -oyaml > deployment.yaml
+kubectl get service demo --export -oyaml > service.yaml
+kubectl get configmap books --export -oyaml > configmap.yaml
+----
+
+. Remove all kubernetes object
++
+----
+kubectl delete deployment demo
+kubectl delete service demo
+kubectl delete configmap books
+----
+
+. Remove unneeded entries from yaml files
+
+. Mount config map
++
+----
+        volumeMounts:
+        - name: books
+          mountPath: /books
+      volumes:
+        - name: books
+          configMap:
+            name: books
+----
+
+. Add limits
++
+----
+          requests:
+            memory: 512Mi
+----
+
+. Apply configuration
++
+----
+kubectl apply -f .
+----
+
+. Add rediness probe parameters to the deployment
++
+----
+        readinessProbe:
+          initialDelaySeconds: 15
+          httpGet:
+            path: /health
+            port: 8080
+----
+
+. Add liveness probe parameters to the deployment
++
+----
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+----
+
+. Apply configuration
++
+----
+kubectl apply -f .
+----
+
+. Scale application
++
+----
+kubectl scale deployment demo --replicas 4
+----
+
+. See were pods were scheduled
++
+----
+kubectl get pods -owide
+----
+
+. See why one of pods was not schedule
++
+----
+kubectl describe pod <pod>
+----
+
+. Look at events in the deployment
++
+----
+kubectl describe deployment demo | grep -A100 Events | sed 's/.*deployment-controller//'
+----
+
+=== GCR demo
+
+. Push docker image to Docker registry GCR
++
+----
+docker tag demo:0.0.1 eu.gcr.io/kubernetes-test-252820/demo:0.0.1
+docker push eu.gcr.io/kubernetes-test-252820/demo:0.0.1
+----
+
+. Change image in deployment to `eu.gcr.io/kubernetes-test-252820/demo:0.0.1`
+
+. Deploy application
++
+----
+kubectl apply -f .
+----
+
+. Test application from inside the cluster
++
+----
+kubectl run busybox --rm --image busybox --restart Never -i -- wget -O - http://demo:8080/books
+----
+
+. Go to external address in browser
+
+== Clean up
+
+. Stop minikube
++
+----
+minikube start
+----
+
+. Delete GKE cluster
++
+----
+gcloud container clusters delete jdd
+----
+
+. Delete docker images
++
+----
+gcloud container images delete eu.gcr.io/kubernetes-test-252820/demo:0.0.1 --force-delete-tags
+----

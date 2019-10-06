@@ -1,4 +1,21 @@
-= Kubernetes introduction presentation - commands
+= Kubernetes introduction presentation
+
+Repository contains simple Java application.
+Application serve `/books` endpoint with list of books read from file.
+File name is passed via `BOOKS_FILE_PATH` environment variable.
+Default (8080) port is used.
+
+. Build application
++
+----
+mvn package
+----
+
+. Run application
++
+----
+java -jar target/kubernetes-demo-0.0.1.jar
+----
 
 == Prepare env
 
@@ -235,9 +252,6 @@ export INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -
 export SECURE_INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="https")].port}')
 
 
-* 3 x n1-standard-1 (1 vCPU, 3.75 GB memory)
-
-
 == Sock-shop
 
 ----
@@ -256,7 +270,8 @@ kubectl edit services -nsock-shop front-end
 
 
 
-Backup commands
+== Backup commands
+
 ----
 gcloud services enable containerregistry.googleapis.com
 
@@ -270,4 +285,14 @@ kubectl run busybox --rm --image busybox --restart Never -i -- wget -O - http://
 
 gcloud container images list --repository eu.gcr.io/kubernetes-test-252820
 
+----
+
+== Java memory test
+
+----
+$ docker run --rm -m 500m openjdk:12-alpine sh -c "java -XX:+PrintFlagsFinal -Xmx256m -Xms256m -version 2>/dev/null | egrep 'MaxHeapSize|MaxRAM'"
+size_t MaxHeapSize                              = 268435456                                 {product} {command line}
+uint64_t MaxRAM                                   = 137438953472                           {pd product} {default}
+uintx MaxRAMFraction                           = 4                                         {product} {default}
+double MaxRAMPercentage                         = 25.000000                                 {product} {default}
 ----

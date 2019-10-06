@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    run: demo
+  name: demo
+  selfLink: /api/v1/namespaces/default/services/demo
+spec:
+  externalTrafficPolicy: Cluster
+  ports:
+  - nodePort: 32755
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    run: demo
+  sessionAffinity: None
+  type: LoadBalancer
+status:
+  loadBalancer: {}

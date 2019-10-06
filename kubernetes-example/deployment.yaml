@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo
+spec:
+  selector:
+    matchLabels:
+      run: demo
+  template:
+    metadata:
+      labels:
+        run: demo
+    spec:
+      containers:
+      - env:
+        - name: BOOKS_FILE_PATH
+          value: /books/books.json
+        - name: JAVA_OPTS
+          value: -Xmx256m -Xms256m
+        image: demo:0.0.1
+        imagePullPolicy: IfNotPresent
+        name: demo
+        resources:
+          limits:
+            memory: 512Mi
+          requests:
+            memory: 512Mi
+        readinessProbe:
+          initialDelaySeconds: 15
+          httpGet:
+            path: /health
+            port: 8080
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+        volumeMounts:
+        - mountPath: /books
+          name: books
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: books
+        name: books
